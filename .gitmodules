@@ -1,0 +1,3 @@
+[submodule "Libraries/depthai-core"]
+	path = Libraries/depthai-core
+	url = https://github.com/MiguelAgueda/depthai-core.git
