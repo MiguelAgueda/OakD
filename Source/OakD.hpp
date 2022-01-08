@@ -10,9 +10,10 @@ private:
     std::shared_ptr<dai::node::MonoCamera> monoRight;
     std::shared_ptr<dai::node::ColorCamera> rgbMiddle;
     std::shared_ptr<dai::node::StereoDepth> stereo;
-    std::shared_ptr<dai::DataOutputQueue> rgbOutputQueue;
     std::shared_ptr<dai::node::XLinkOut> stereoOut;
     std::shared_ptr<dai::node::XLinkOut> rgbOut;
+    std::shared_ptr<dai::DataOutputQueue> rgbOutputQueue;
+    std::shared_ptr<dai::DataOutputQueue> stereoOutputQueue;
 
     // Closer-in minimum depth, disparity range is doubled (from 95 to 190):
     std::atomic<bool> extended_disparity{false};

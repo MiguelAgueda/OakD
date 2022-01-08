@@ -43,6 +43,7 @@ bool OakD::Connect()
 
     // Output queue will be used to get the disparity frames from the outputs defined above
     this->rgbOutputQueue = device->getOutputQueue("rgb", 4, true);
+    this->stereoOutputQueue = device->getOutputQueue("stereo", 4, true);
     return true;
 }
 
@@ -52,16 +53,21 @@ cv::Mat OakD::GetImage()
     return inDepth->getCvFrame();
 }
 
+cv::Mat OakD::GetStereoImage()
+{
+    std::shared_ptr<dai::ImgFrame> stereoFrame = this->stereoOutputQueue->get<dai::ImgFrame>();
+    return stereoFrame->getCvFrame();
+}
+
 
 int OakD::StartStream()
 {
-    while (true)
+    while (cv::waitKey(1) != 'q')
     {
         cv::Mat frame = this->GetImage();
         cv::Mat stereoFrame = this->GetStereoImage();
         cv::imshow("Frame", frame);
         cv::imshow("Stereo Frame", stereoFrame);
-        
     }
 
     return 0;
