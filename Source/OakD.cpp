@@ -4,31 +4,51 @@ bool OakD::Connect()
 {
     // Define sources and outputs
     this->pipeline = dai::Pipeline();
-    this->monoLeft = pipeline.create<dai::node::MonoCamera>();
-    this->monoRight = pipeline.create<dai::node::MonoCamera>();
-    this->rgbMiddle = pipeline.create<dai::node::ColorCamera>();
-    this->depth = pipeline.create<dai::node::StereoDepth>();
-    this->xout = pipeline.create<dai::node::XLinkOut>();
-    this->rgbOut = pipeline.create<dai::node::XLinkOut>();
+    this->monoLeft = this->pipeline.create<dai::node::MonoCamera>();
+    this->monoRight = this->pipeline.create<dai::node::MonoCamera>();
+    this->rgbMiddle = this->pipeline.create<dai::node::ColorCamera>();
+    this->stereo = this->pipeline.create<dai::node::StereoDepth>();
+    this->stereoOut = this->pipeline.create<dai::node::XLinkOut>();
+    this->rgbOut = this->pipeline.create<dai::node::XLinkOut>();
 
-    xout->setStreamName("disparity");
-    rgbOut->setStreamName("rgb");
+    this->stereoOut->setStreamName("stereo");
+    this->rgbOut->setStreamName("rgb");
 
-    rgbMiddle->setResolution(dai::ColorCameraProperties::SensorResolution::THE_1080_P);
-    rgbMiddle->setBoardSocket(dai::CameraBoardSocket::RGB);
-    rgbMiddle->preview.link(rgbOut->input);
+    // Define properties.
+    this->monoLeft->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
+    this->monoLeft->setBoardSocket(dai::CameraBoardSocket::LEFT);
+    this->monoRight->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
+    this->monoRight->setBoardSocket(dai::CameraBoardSocket::RIGHT);
+
+    // Set Up Stereo.
+    this->stereo->initialConfig.setConfidenceThreshold(245);
+    this->stereo->setRectifyEdgeFillColor(0); // black, to better see the cutout
+    this->stereo->initialConfig.setMedianFilter(dai::MedianFilter::KERNEL_5x5);
+    this->stereo->setLeftRightCheck(false);
+    this->stereo->setExtendedDisparity(false);
+    this->stereo->setSubpixel(false);
+
+
+    // Linking
+    this->monoLeft->out.link(this->stereo->left);
+    this->monoRight->out.link(this->stereo->right);
+    this->stereo->depth.link(this->stereoOut->input);
+
+    this->rgbMiddle->setResolution(dai::ColorCameraProperties::SensorResolution::THE_1080_P);
+    this->rgbMiddle->setBoardSocket(dai::CameraBoardSocket::RGB);
+    this->rgbMiddle->preview.link(this->rgbOut->input);
 
     // Connect to device and start pipeline
     this->device = std::make_shared<dai::Device>(pipeline);
 
     // Output queue will be used to get the disparity frames from the outputs defined above
-    this->outputQueue = device->getOutputQueue("rgb", 4, true);
+    this->rgbOutputQueue = device->getOutputQueue("rgb", 4, true);
     return true;
 }
 
 cv::Mat OakD::GetImage()
 {
-    std::shared_ptr<dai::ImgFrame> inDepth = this->outputQueue->get<dai::ImgFrame>();
+    std::shared_ptr<dai::ImgFrame> inDepth = this->rgbOutputQueue->get<dai::ImgFrame>();
     return inDepth->getCvFrame();
 }
 
@@ -38,8 +58,10 @@ int OakD::StartStream()
     while (true)
     {
         cv::Mat frame = this->GetImage();
+        cv::Mat stereoFrame = this->GetStereoImage();
         cv::imshow("Frame", frame);
-        cv::waitKey(1);
+        cv::imshow("Stereo Frame", stereoFrame);
+        
     }
 
     return 0;
