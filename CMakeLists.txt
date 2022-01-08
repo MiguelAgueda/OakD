@@ -10,9 +10,6 @@ find_package(OpenCV REQUIRED)
 
 add_library(OakD Source/OakD.cpp)
 
-# include_directories(Include/)
-# target_link_directories(OakD PUBLIC Include)
-
 target_link_libraries(OakD ${DepthAI_LIBRARIES})
 target_link_libraries(OakD PUBLIC depthai::opencv ${OpenCV_LIBS})
 target_include_directories(OakD PUBLIC Source)
