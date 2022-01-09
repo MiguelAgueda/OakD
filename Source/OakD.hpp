@@ -17,7 +17,7 @@ private:
     std::shared_ptr<dai::DataOutputQueue> stereoOutputQueue;
 
 public:
-    OakD(){};
+    OakD();
     bool Connect();
     cv::Mat GetImage();
     cv::Mat GetStereoImage();
