@@ -26,11 +26,16 @@ bool OakD::Connect()
     this->monoRight = this->pipeline.create<dai::node::MonoCamera>();
     this->rgbMiddle = this->pipeline.create<dai::node::ColorCamera>();
     this->stereo = this->pipeline.create<dai::node::StereoDepth>();
+    this->spatial = this->pipeline.create<dai::node::SpatialLocationCalculator>();
     this->rgbOut = this->pipeline.create<dai::node::XLinkOut>();
     this->stereoOut = this->pipeline.create<dai::node::XLinkOut>();
+    this->spatialOut = this->pipeline.create<dai::node::XLinkOut>();
+    this->spatialConfigIn = this->pipeline.create<dai::node::XLinkIn>();
 
     this->rgbOut->setStreamName("rgb");
     this->stereoOut->setStreamName("stereo");
+    this->spatialOut->setStreamName("spatial");
+    this->spatialConfigIn->setStreamName("spatialConfig");
 
     // Define properties.
     this->monoLeft->setResolution(dai::MonoCameraProperties::SensorResolution::THE_720_P);
@@ -46,6 +51,17 @@ bool OakD::Connect()
     this->stereo->setExtendedDisparity(false);
     this->stereo->setSubpixel(false);
 
+    // Spatial sensing configuration.
+    dai::Point2f topLeft(0.4f, 0.4f);
+    dai::Point2f bottomRight(0.6f, 0.6f);
+    dai::SpatialLocationCalculatorConfigData config;
+    config.depthThresholds.lowerThreshold = 100;
+    config.depthThresholds.upperThreshold = 10000;
+    config.roi = dai::Rect(topLeft, bottomRight);
+
+    this->spatial->inputConfig.setBlocking(false);
+    this->spatial->initialConfig.addROI(config);
+
 
     // Linking
     this->monoLeft->out.link(this->stereo->left);
@@ -57,6 +73,12 @@ bool OakD::Connect()
     this->rgbMiddle->video.link(this->rgbOut->input);
     this->rgbOut->input.setBlocking(false);
     this->rgbOut->input.setQueueSize(1);
+
+    this->spatial->passthroughDepth.link(this->stereoOut->input);
+    this->stereo->depth.link(this->spatial->inputDepth);
+
+    this->spatial->out.link(this->spatialOut->input);
+    this->spatialConfigIn->out.link(this->spatial->inputConfig);
 
     // Connect to device and start pipeline
     this->device = std::make_shared<dai::Device>(pipeline);
@@ -93,12 +115,17 @@ cv::Mat OakD::GetStereoImage()
 }
 
 
-/* @brief Start a process that will display both RGB and depth images in full resolution.
+// /* @brief Retrieve a spatially-dimensioned image from the OakD camera.
+//  */
+// dai::SpatialLocationCalculatorData
+
+    /* @brief Start a process that will display both RGB and depth images in full resolution.
  * @note Only way out of this call is for the user to input 'q', or ctrl-c. 
  * @todo Add conditional flag to while loop that can be accessed from outside loop,
  *       will allow the stream to be programmatically closed. 
  */
-void OakD::StartStream()
+    void
+    OakD::StartStream()
 {
     while (cv::waitKey(1) != 'q')
     {

@@ -9,8 +9,11 @@ private:
     std::shared_ptr<dai::node::MonoCamera> monoRight;
     std::shared_ptr<dai::node::ColorCamera> rgbMiddle;
     std::shared_ptr<dai::node::StereoDepth> stereo;
+    std::shared_ptr<dai::node::SpatialLocationCalculator> spatial;
     std::shared_ptr<dai::node::XLinkOut> rgbOut;
     std::shared_ptr<dai::node::XLinkOut> stereoOut;
+    std::shared_ptr<dai::node::XLinkOut> spatialOut;
+    std::shared_ptr<dai::node::XLinkIn> spatialConfigIn;
 
     std::shared_ptr<dai::Device> device;
     std::shared_ptr<dai::DataOutputQueue> rgbOutputQueue;
