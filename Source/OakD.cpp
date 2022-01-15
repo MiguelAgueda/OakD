@@ -80,15 +80,22 @@ bool OakD::Connect()
     this->spatial->out.link(this->spatialOut->input);
     this->spatialConfigIn->out.link(this->spatial->inputConfig);
 
-    // Connect to device and start pipeline
-    this->device = std::make_shared<dai::Device>(pipeline);
-
-    // Output queue will be used to get the disparity frames from the outputs defined above
-    this->rgbOutputQueue = device->getOutputQueue("rgb", 4, true);
-    this->stereoOutputQueue = device->getOutputQueue("stereo", 4, true);
-
-    // If control made it this far, connection was successfully established.
-    return true;
+    try
+    {
+        // Connect to device and start pipeline
+        this->device = std::make_shared<dai::Device>(pipeline);
+        this->rgbOutputQueue = device->getOutputQueue("rgb", 4, false);
+        this->stereoOutputQueue = device->getOutputQueue("stereo", 4, false);
+        this->spatialConfigInputQueue = device->getInputQueue("spatialConfig", 4, false);
+        this->spatialOutputQueue = device->getOutputQueue("spatial", 4, false);
+        return true;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << ':' << '\n';
+        std::cerr << "\tIs a device connected? \n\tCorrect IP/Subnet? \n\tCorrect cable? \n\tCorrect port?\n";
+        return false;
+    }
 }
 
 
@@ -115,9 +122,42 @@ cv::Mat OakD::GetStereoImage()
 }
 
 
-// /* @brief Retrieve a spatially-dimensioned image from the OakD camera.
-//  */
-// dai::SpatialLocationCalculatorData
+/* @brief Retrieve a spatially-dimensioned image from the OakD camera.
+ * @todo Add method for retrieving a matrix containing the depth points for each
+ *       pixel in a supplied rectangle (bounding box).
+ */
+dai::SpatialLocationCalculatorData OakD::GetSpatialData(const cv::Mat& referenceFrame)
+{
+    std::vector<dai::SpatialLocations> spatialData = this->spatialOutputQueue->get<dai::SpatialLocationCalculatorData>()->getSpatialLocations();
+    for (const dai::SpatialLocations& depthData : spatialData)
+    {
+        dai::Rect roi = depthData.config.roi;
+        // Denormalize from range [0, 1] to range [0, referenceFrame.cols/rows]
+        roi = roi.denormalize(referenceFrame.cols, referenceFrame.rows);
+        int xmin = static_cast<int>(roi.topLeft().x);
+        int ymin = static_cast<int>(roi.topLeft().y);
+        int xmax = static_cast<int>(roi.bottomRight().x);
+        int ymax = static_cast<int>(roi.bottomRight().y);
+
+        auto depthMin = depthData.depthMin;
+        auto depthMax = depthData.depthMax;
+        cv::Scalar color(255, 255, 255);
+        cv::rectangle(referenceFrame, 
+                      cv::Rect(cv::Point(xmin, ymin), cv::Point(xmax, ymax)), 
+                      color, 
+                      cv::FONT_HERSHEY_SIMPLEX);
+
+        std::stringstream depthX;
+        depthX << "X: " << (int)depthData.spatialCoordinates.x << " mm";
+        cv::putText(referenceFrame, depthX.str(), cv::Point(xmin + 10, ymin + 20), cv::FONT_HERSHEY_TRIPLEX, 0.5, color);
+        std::stringstream depthY;
+        depthY << "Y: " << (int)depthData.spatialCoordinates.y << " mm";
+        cv::putText(referenceFrame, depthY.str(), cv::Point(xmin + 10, ymin + 35), cv::FONT_HERSHEY_TRIPLEX, 0.5, color);
+        std::stringstream depthZ;
+        depthZ << "Z: " << (int)depthData.spatialCoordinates.z << " mm";
+        cv::putText(referenceFrame, depthZ.str(), cv::Point(xmin + 10, ymin + 50), cv::FONT_HERSHEY_TRIPLEX, 0.5, color);
+    }
+}
 
     /* @brief Start a process that will display both RGB and depth images in full resolution.
  * @note Only way out of this call is for the user to input 'q', or ctrl-c. 

@@ -18,11 +18,14 @@ private:
     std::shared_ptr<dai::Device> device;
     std::shared_ptr<dai::DataOutputQueue> rgbOutputQueue;
     std::shared_ptr<dai::DataOutputQueue> stereoOutputQueue;
+    std::shared_ptr<dai::DataOutputQueue> spatialOutputQueue;
+    std::shared_ptr<dai::DataInputQueue> spatialConfigInputQueue;
 
 public:
     OakD();
     bool Connect();
     cv::Mat GetImage();
     cv::Mat GetStereoImage();
+    dai::SpatialLocationCalculatorData GetSpatialData(const cv::Mat &referenceFrame);
     void StartStream();
 };
